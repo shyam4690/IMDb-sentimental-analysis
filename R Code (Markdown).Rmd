@@ -1,0 +1,126 @@
+---
+title: "IMDb sentimental Analysis (Shyam Gandhi)"
+output: word_document
+---
+
+# Extracting file from source.
+
+```{r}
+file<-read.csv("C:/Users/Shyam Gandhi/Desktop/Traintrial.csv", header = T, sep = ",")
+```
+
+# Extracting the comment text
+```{r}
+file_text<-file$text
+```
+
+# Convert all text to lower case 
+```{r}
+file_text<-tolower(file_text)
+```
+
+# Removing extra text between the words
+```{r}
+file_text<-gsub("\\s+", " ",file_text)
+```
+
+# For removing extra space and tab between text
+```{r}
+file_text<-gsub("[ |\t]{2,}"," ",file_text)
+```
+
+# For removing any space at beggining of text
+```{r}
+file_text<-gsub("^ ","",file_text)
+```
+
+# For removing any space at end of text
+```{r}
+file_text<-gsub(" $","",file_text)
+```
+
+# For removing any punctuation
+```{r}
+file_text<-gsub("[[:punct:]]","",file_text)
+```
+
+
+# For removing predifined stopwords
+```{r}
+library(tm)
+library(stopwords)
+file_text<-removeWords(file_text, stopwords("en"))
+```
+
+# For remving my own made stopwords
+```{r}
+file_text<-removeWords(file_text, c("film","movie","films","movies"))
+```
+
+# For removing all numbers
+```{r}
+file_text<-removeNumbers(file_text)
+file_text<-gsub("[ |\t]{2,}"," ",file_text)
+```
+
+# For lemmatizing the string
+```{r}
+library(textstem)
+
+file_text<-lemmatize_strings(file_text, language = "porter")
+```
+
+#Making corpus of text
+```{r}
+file_corpus<-Corpus(VectorSource(file_text))
+```
+
+# Creating term frequency matrix
+```{r}
+dtm<-TermDocumentMatrix(file_corpus)
+m<-as.matrix(dtm)
+v<-sort(rowSums(m), decreasing = T)
+d<-data.frame(word=names(v), freq=v)
+head(d,10)
+```
+
+#Creating WordCloud to demonstrate term frequency
+```{r}
+library(wordcloud)
+library(RColorBrewer)
+
+set.seed(200)
+wordcloud(words = d$word, freq = d$freq, min.freq = 1, max.words = 100, random.order = F, random.color = T, colors = brewer.pal(8,"Dark2"))
+```
+
+# Ranking Sentiment
+```{r}
+library(syuzhet)
+
+mysentiment<-get_nrc_sentiment(file_text)
+sentiment_score<-data.frame(colSums(mysentiment[,]))
+names(sentiment_score)<-"Score"
+sentiment_score<-cbind("sentiment"=rownames(sentiment_score),sentiment_score)
+rownames(sentiment_score)<-NULL
+sentiment_score
+```
+
+#Ploting sentiment
+```{r}
+library(ggplot2)
+ggplot(data=sentiment_score, aes(x=sentiment, y=Score))+geom_bar(aes(fill=sentiment),stat = "identity")+theme(legend.position = "none")+xlab("Sentiment")+ylab("Scores")
+```
+
+# Assigning score to each individual text
+```{r}
+library(sentimentr)
+senti<-sentiment_by(file_text)
+senti$ave_sentiment<-round(senti$ave_sentiment,3)
+qplot(senti$ave_sentiment,geom = "histogram", binwidth =0.6)
+sentiterms<-extract_sentiment_terms(file_text)
+sentiterms$rating<-senti$ave_sentiment
+head(sentiterms,10)
+```
+
+
+
